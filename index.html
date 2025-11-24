@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Современный календарь</title>
+    <style>
+        :root {
+            --primary-color: #4a6fa5;
+            --secondary-color: #6b8cbc;
+            --accent-color: #ff7e5f;
+            --text-color: #333;
+            --light-color: #f5f7fa;
+            --border-color: #e1e4e8;
+            --selected-color: #4a6fa5;
+            --today-color: #ff7e5f;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f0f2f5;
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .calendar-container {
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+            overflow: hidden;
+        }
+
+        .calendar-header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .calendar-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .calendar-controls button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        .calendar-controls button:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .month-year-selector {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        select {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        select option {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .calendar-grid {
+            padding: 20px;
+        }
+
+        .weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            text-align: center;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--secondary-color);
+        }
+
+        .days-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+        }
+
+        .day {
+            aspect-ratio: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .day:hover {
+            background-color: var(--light-color);
+        }
+
+        .day.other-month {
+            color: #aaa;
+        }
+
+        .day.selected {
+            background-color: var(--selected-color);
+            color: white;
+        }
+
+        .day.today {
+            background-color: var(--today-color);
+            color: white;
+        }
+
+        .selected-date {
+            padding: 15px 20px;
+            background-color: var(--light-color);
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+            font-weight: 500;
+        }
+
+        @media (max-width: 480px) {
+            .calendar-container {
+                max-width: 100%;
+            }
+            
+            .month-year-selector {
+                flex-direction: column;
+                gap: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="calendar-container">
+        <div class="calendar-header">
+            <div class="calendar-controls">
+                <button id="prev-year">&lt;&lt;</button>
+                <button id="prev-month">&lt;</button>
+                <div class="month-year-selector">
+                    <select id="month-select"></select>
+                    <select id="year-select"></select>
+                </div>
+                <button id="next-month">&gt;</button>
+                <button id="next-year">&gt;&gt;</button>
+            </div>
+        </div>
+        <div class="calendar-grid">
+            <div class="weekdays">
+                <div>Пн</div>
+                <div>Вт</div>
+                <div>Ср</div>
+                <div>Чт</div>
+                <div>Пт</div>
+                <div>Сб</div>
+                <div>Вс</div>
+            </div>
+            <div class="days-grid" id="days-container"></div>
+        </div>
+        <div class="selected-date" id="selected-date">
+            Выберите дату
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Элементы DOM
+            const monthSelect = document.getElementById('month-select');
+            const yearSelect = document.getElementById('year-select');
+            const daysContainer = document.getElementById('days-container');
+            const selectedDateElement = document.getElementById('selected-date');
+            const prevMonthBtn = document.getElementById('prev-month');
+            const nextMonthBtn = document.getElementById('next-month');
+            const prevYearBtn = document.getElementById('prev-year');
+            const nextYearBtn = document.getElementById('next-year');
+            
+            // Текущая дата
+            let currentDate = new Date();
+            let selectedDate = null;
+            
+            // Названия месяцев
+            const monthNames = [
+                'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+                'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+            ];
+            
+            // Инициализация выпадающих списков
+            function initializeSelectors() {
+                // Заполнение месяцев
+                monthNames.forEach((month, index) => {
+                    const option = document.createElement('option');
+                    option.value = index;
+                    option.textContent = month;
+                    monthSelect.appendChild(option);
+                });
+                
+                // Заполнение лет (от -10 до +10 лет от текущего)
+                const currentYear = currentDate.getFullYear();
+                for (let year = currentYear - 10; year <= currentYear + 10; year++) {
+                    const option = document.createElement('option');
+                    option.value = year;
+                    option.textContent = year;
+                    yearSelect.appendChild(option);
+                }
+                
+                // Установка текущих значений
+                monthSelect.value = currentDate.getMonth();
+                yearSelect.value = currentDate.getFullYear();
+            }
+            
+            // Генерация календаря
+            function generateCalendar() {
+                // Очистка контейнера
+                daysContainer.innerHTML = '';
+                
+                const year = parseInt(yearSelect.value);
+                const month = parseInt(monthSelect.value);
+                
+                // Первый день месяца
+                const firstDay = new Date(year, month, 1);
+                // Последний день месяца
+                const lastDay = new Date(year, month + 1, 0);
+                // День недели первого дня (0 - воскресенье, 1 - понедельник и т.д.)
+                const firstDayWeekday = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
+                
+                // Добавление пустых ячеек для дней предыдущего месяца
+                for (let i = 0; i < firstDayWeekday; i++) {
+                    const dayElement = document.createElement('div');
+                    dayElement.classList.add('day', 'other-month');
+                    const prevMonthLastDay = new Date(year, month, 0).getDate();
+                    dayElement.textContent = prevMonthLastDay - firstDayWeekday + i + 1;
+                    daysContainer.appendChild(dayElement);
+                }
+                
+                // Добавление дней текущего месяца
+                for (let day = 1; day <= lastDay.getDate(); day++) {
+                    const dayElement = document.createElement('div');
+                    dayElement.classList.add('day');
+                    dayElement.textContent = day;
+                    
+                    // Проверка, является ли день сегодняшним
+                    const today = new Date();
+                    if (year === today.getFullYear() && month === today.getMonth() && day === today.getDate()) {
+                        dayElement.classList.add('today');
+                    }
+                    
+                    // Проверка, является ли день выбранным
+                    if (selectedDate && 
+                        year === selectedDate.getFullYear() && 
+                        month === selectedDate.getMonth() && 
+                        day === selectedDate.getDate()) {
+                        dayElement.classList.add('selected');
+                    }
+                    
+                    // Обработчик выбора даты
+                    dayElement.addEventListener('click', function() {
+                        // Сброс предыдущего выбора
+                        document.querySelectorAll('.day.selected').forEach(el => {
+                            el.classList.remove('selected');
+                        });
+                        
+                        // Установка нового выбора
+                        dayElement.classList.add('selected');
+                        selectedDate = new Date(year, month, day);
+                        
+                        // Обновление отображения выбранной даты
+                        updateSelectedDateDisplay();
+                    });
+                    
+                    daysContainer.appendChild(dayElement);
+                }
+                
+                // Добавление пустых ячеек для дней следующего месяца
+                const totalCells = 42; // 6 строк по 7 дней
+                const remainingCells = totalCells - (firstDayWeekday + lastDay.getDate());
+                for (let i = 1; i <= remainingCells; i++) {
+                    const dayElement = document.createElement('div');
+                    dayElement.classList.add('day', 'other-month');
+                    dayElement.textContent = i;
+                    daysContainer.appendChild(dayElement);
+                }
+                
+                // Обновление отображения выбранной даты
+                updateSelectedDateDisplay();
+            }
+            
+            // Обновление отображения выбранной даты
+            function updateSelectedDateDisplay() {
+                if (selectedDate) {
+                    const options = { 
+                        weekday: 'long', 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                    };
+                    selectedDateElement.textContent = selectedDate.toLocaleDateString('ru-RU', options);
+                } else {
+                    selectedDateElement.textContent = 'Выберите дату';
+                }
+            }
+            
+            // Обработчики событий
+            monthSelect.addEventListener('change', generateCalendar);
+            yearSelect.addEventListener('change', generateCalendar);
+            
+            prevMonthBtn.addEventListener('click', function() {
+                let month = parseInt(monthSelect.value);
+                let year = parseInt(yearSelect.value);
+                
+                if (month === 0) {
+                    month = 11;
+                    year--;
+                } else {
+                    month--;
+                }
+                
+                monthSelect.value = month;
+                yearSelect.value = year;
+                generateCalendar();
+            });
+            
+            nextMonthBtn.addEventListener('click', function() {
+                let month = parseInt(monthSelect.value);
+                let year = parseInt(yearSelect.value);
+                
+                if (month === 11) {
+                    month = 0;
+                    year++;
+                } else {
+                    month++;
+                }
+                
+                monthSelect.value = month;
+                yearSelect.value = year;
+                generateCalendar();
+            });
+            
+            prevYearBtn.addEventListener('click', function() {
+                yearSelect.value = parseInt(yearSelect.value) - 1;
+                generateCalendar();
+            });
+            
+            nextYearBtn.addEventListener('click', function() {
+                yearSelect.value = parseInt(yearSelect.value) + 1;
+                generateCalendar();
+            });
+            
+            // Инициализация
+            initializeSelectors();
+            generateCalendar();
+        });
+    </script>
+</body>
+</html>
